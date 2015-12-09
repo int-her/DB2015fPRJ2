@@ -46,6 +46,7 @@ class prj2 {
 				case 6:
 					break;
 				case 7:
+					makeApplication(conn);
 					break;
 				case 8:
 					break;
@@ -58,6 +59,8 @@ class prj2 {
 				case 12:
 					System.out.println("Bye!");
 					System.exit(0);
+				default:
+					System.out.println("Invalid action.");
 				}
 					
 				
@@ -167,7 +170,7 @@ class prj2 {
 			ResultSet getIdRs = getIdStmt.executeQuery();
 			int id = 1;
 			if (getIdRs.first())
-				id = getIdRs.getInt("max(id)");
+				id = getIdRs.getInt("max(id)") + 1;
 			insertStmt.setInt(1, id);
 			
 			insertStmt.executeUpdate();
@@ -204,7 +207,7 @@ class prj2 {
 			ResultSet getIdRs = getIdStmt.executeQuery();
 			int id = 1;
 			if (getIdRs.first())
-				id = getIdRs.getInt("max(id)");
+				id = getIdRs.getInt("max(id)") + 1;
 			insertStmt.setInt(1, id);
 			
 			insertStmt.executeUpdate();
@@ -212,7 +215,44 @@ class prj2 {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		System.out.println("============================================================");
-		
+		System.out.println(doubleLine);
+	}
+	
+	/* 7. make an application */
+	static void makeApplication(Connection conn) {
+		try {
+			String insertSql = "INSERT INTO apply VALUES(?, ?, ?, ?)";
+			/* 1:stud_id, 2:univ_id, 3:group, 4:weight */
+			PreparedStatement insertStmt = conn.prepareStatement(insertSql);
+			
+			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+			System.out.println("Student Id: ");
+			int stud_id = Integer.parseInt(br.readLine());
+			insertStmt.setInt(1, stud_id);
+			
+			System.out.println("University Id: ");
+			int univ_id = Integer.parseInt(br.readLine());
+			insertStmt.setInt(2, univ_id);
+			
+			/* get group & weight info in university table */
+			String getInfoSql = "SELECT * FROM university WHERE id = " + univ_id;
+			PreparedStatement getInfoStmt = conn.prepareStatement(getInfoSql);
+			ResultSet getInfoRs = getInfoStmt.executeQuery();
+			
+			if (!getInfoRs.first()) {
+				System.out.println("");
+				System.out.println(doubleLine);
+			} else {
+				String group = getInfoRs.getString("group");
+				float weight = getInfoRs.getFloat("weight");
+				insertStmt.setString(3, group);
+				insertStmt.setFloat(4, weight);
+				insertStmt.executeUpdate();
+				System.out.println("Successfully made an application");
+				System.out.println(doubleLine);
+			}			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }
