@@ -1,5 +1,6 @@
 import java.sql.*;
 import java.io.*;
+import java.text.*;
 
 class prj2 {
 
@@ -82,11 +83,13 @@ class prj2 {
 	static void printUniv(Connection conn, int code) {
 		try {
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-			int id, capacity, stud_id;
+			int id, capacity, stud_id, applied;
 			String name, group, selectSql = "", checkSql = "";
-			float weight, applied;
+			float weight;
 			PreparedStatement selectStmt, checkStmt;
 			ResultSet selectRs, checkRs;
+			NumberFormat format = NumberFormat.getInstance();
+			format.setMaximumFractionDigits(3);
 			
 			switch(code) {
 			case 1:
@@ -127,9 +130,9 @@ class prj2 {
 					capacity = selectRs.getInt("capacity");
 					group = selectRs.getString("group");
 					weight = selectRs.getFloat("weight");
-					applied = selectRs.getFloat("applied");
+					applied = selectRs.getInt("applied");
 					
-					System.out.println(id+"\t"+name+"\t\t\t"+capacity+"\t\t"+group+"\t"+weight+"\t"+applied);					
+					System.out.println(id+"\t"+name+"\t\t\t"+capacity+"\t\t"+group+"\t"+format.format(weight)+"\t"+applied);					
 				} while (selectRs.next());
 				System.out.println(singleLine);
 			}			
@@ -211,7 +214,9 @@ class prj2 {
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 			System.out.print("University name: ");
 			String name = br.readLine();
-			if (name.length() > 128) {} /* truncate */
+			if (name.length() > 128) {
+				name = name.substring(0, 128);
+			}
 			insertStmt.setString(2, name);
 			
 			System.out.print("University capacity: ");
@@ -304,6 +309,9 @@ class prj2 {
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 			System.out.print("Student name: ");
 			String name = br.readLine();
+			if (name.length() > 20) {
+				name = name.substring(0, 20);
+			}
 			insertStmt.setString(2, name);
 			
 			System.out.print("CSAT score: ");
@@ -381,7 +389,7 @@ class prj2 {
 				/* finally, update 'applied' & 'pass_scaled_score' in university table */
 				i = 0;
 				do {
-					updateApplied(conn, updateUniv_id[i++]);
+					updateApplied(conn, updateUniv_id[i]);
 					updatePassScore(conn, updateUniv_id[i++]);
 				} while (i < 3);
 
