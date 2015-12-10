@@ -202,7 +202,29 @@ class prj2 {
 	/* 4. remove a university */
 	static void removeUniversity(Connection conn) {
 		try {
-			System.out.println("A university is successfully deleted.");
+			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+			System.out.println("University Id: ");
+			int univ_id = Integer.parseInt(br.readLine());
+			/* check stud_id is valid data */
+			String checkSql = "SELECT * FROM university WHERE id = " + univ_id;
+			PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+			ResultSet checkRs = checkStmt.executeQuery();
+			if (!checkRs.first()) {
+				System.out.println("Student " + univ_id + " doesn't exist.");
+				System.out.println(doubleLine);
+				return;
+			} else {
+				/* first, delete data in apply table */
+				String deleteSql = "DELETE FROM apply WHERE univ_id = " + univ_id;
+				PreparedStatement deleteStmt = conn.prepareStatement(deleteSql);
+				deleteStmt.executeUpdate();				
+				/* second, delete data in university table */
+				deleteSql = "DELETE FROM university WHERE id = " + univ_id;
+				deleteStmt = conn.prepareStatement(deleteSql);
+				deleteStmt.executeUpdate();
+				System.out.println("A university is successfully deleted.");
+			}
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -258,7 +280,48 @@ class prj2 {
 	/* 6. remove a student */
 	static void removeStudent(Connection conn) {
 		try {
-			System.out.println("A student is successfully deleted.");
+			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+			System.out.println("Student Id: ");
+			int stud_id = Integer.parseInt(br.readLine());
+			/* check stud_id is valid data */
+			String checkSql = "SELECT * FROM student WHERE id = " + stud_id;
+			PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+			ResultSet checkRs = checkStmt.executeQuery();
+			if (!checkRs.first()) {
+				System.out.println("Student " + stud_id + " doesn't exist.");
+				System.out.println(doubleLine);
+				return;
+			} else {
+				/* firstly, store univ_id needed(?) update 'applied' */
+				String selectSql = "SELECT * FROM apply WHERE stud_id = " + stud_id;
+				PreparedStatement selectStmt = conn.prepareStatement(selectSql);
+				ResultSet selectRs = selectStmt.executeQuery();
+				int[] updateUniv_id = {0, 0, 0};
+				int i = 0;
+				if (selectRs.first()) {
+					do {
+						updateUniv_id[i++] = selectRs.getInt("univ_id");
+					} while (selectRs.next());
+				}
+				
+				/* secondly, delete data in apply table */
+				String deleteSql = "DELETE FROM apply WHERE stud_id = " + stud_id;
+				PreparedStatement deleteStmt = conn.prepareStatement(deleteSql);
+				deleteStmt.executeUpdate();
+				
+				/* thirdly, delete data in student table */
+				deleteSql = "DELETE FROM student WHERE id = " + stud_id;
+				deleteStmt = conn.prepareStatement(deleteSql);
+				deleteStmt.executeUpdate();
+				
+				/* finally, update 'applied' in university table */
+				i = 0;
+				do {
+					updateApplied(conn, updateUniv_id[i++]);
+				} while (i < 3);
+
+				System.out.println("A student is successfully deleted.");
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -268,7 +331,7 @@ class prj2 {
 	static void makeApplication(Connection conn) {
 		try {
 			String insertSql = "INSERT INTO apply VALUES(?, ?, ?, ?)";
-			/* 1:stud_id, 2:univ_id, 3:group, 4:weight */
+			/* 1:stud_id, 2:univ_id, 3:group, 4:scaled_score */
 			PreparedStatement insertStmt = conn.prepareStatement(insertSql);
 			
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
@@ -283,6 +346,8 @@ class prj2 {
 				System.out.println(doubleLine);
 				return;
 			}
+			int csat_score = checkRs.getInt("csat_score");
+			int school_score = checkRs.getInt("school_score");
 			insertStmt.setInt(1, stud_id);
 			
 			System.out.println("University Id: ");
@@ -293,7 +358,6 @@ class prj2 {
 			String getInfoSql = "SELECT * FROM university WHERE id = " + univ_id;
 			PreparedStatement getInfoStmt = conn.prepareStatement(getInfoSql);
 			ResultSet getInfoRs = getInfoStmt.executeQuery();
-			
 			/* check univ_id is valid data */
 			if (!getInfoRs.first()) {
 				System.out.println("University " + univ_id + "doesn't exist.");
@@ -303,7 +367,7 @@ class prj2 {
 				String group = getInfoRs.getString("group");
 				float weight = getInfoRs.getFloat("weight");
 				
-				/* check application is one university per group */
+				/* check whether application is one university per group */
 				checkSql = "SELECT * FROM apply WHERE stud_id = " + stud_id;
 				checkStmt = conn.prepareStatement(checkSql);
 				checkRs = checkStmt.executeQuery();
@@ -314,26 +378,52 @@ class prj2 {
 							System.out.println("A student can apply up to one university per group.");
 							System.out.println(doubleLine);
 							return;
-						}						
+						}
 					} while (checkRs.next());
 				}
 				
 				insertStmt.setString(3, group);
-				insertStmt.setFloat(4, weight);
+				float scaled_score = csat_score + weight * school_score;
+				insertStmt.setFloat(4, scaled_score);
 				insertStmt.executeUpdate();
-				System.out.println("Successfully made an application");
+				System.out.println("Successfully made an application.");
 				System.out.println(doubleLine);
 			}
 			
 			/* update 'applied' in university table */
-			updateApplied(conn);
+			updateApplied(conn, univ_id);
 			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	static void updateApplied(Connection conn) {
-		
+	/* update 'applied' in university table */
+	static void updateApplied(Connection conn, int univ_id) {
+		try {
+			if (univ_id < 1) return; /* invalid univ_id */
+			
+			/* load necessary data */
+			String selectSql = "SELECT * FROM university WHERE id = " + univ_id;
+			PreparedStatement selectStmt = conn.prepareStatement(selectSql);
+			ResultSet selectRs = selectStmt.executeQuery();
+			if (selectRs.first()) {
+				int capacity = selectRs.getInt("capacity");
+			} else {
+				System.out.println("**********THIS MSG SHOULD NOT BE PRINTED**********");
+			}
+			
+			selectSql = "SELECT * FROM apply WHERE univ_id = " + univ_id;
+			selectStmt = conn.prepareStatement(selectSql);
+			selectRs = selectStmt.executeQuery();
+			if (selectRs.first()) {
+				/* use list or array, and sorting library */
+			} else {
+				/* empty */
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }
