@@ -30,10 +30,10 @@ class prj2 {
 				
 				switch(input) {
 				case 1:
-					printAllUniv(conn);
+					printUniv(conn, input);
 					break;
 				case 2:
-					printAllStud(conn);
+					printStud(conn, input);
 					break;
 				case 3:
 					insertNewUniv(conn);
@@ -51,12 +51,16 @@ class prj2 {
 					makeApplication(conn);
 					break;
 				case 8:
+					printStud(conn, input);
 					break;
 				case 9:
+					printUniv(conn, input);
 					break;
 				case 10:
+					printStud(conn, input);
 					break;
 				case 11:
+					printUniv(conn, input);
 					break;
 				case 12:
 					System.out.println("Bye!");
@@ -72,16 +76,44 @@ class prj2 {
 		}
 	}
 	
-	/* 1. print all universities */
-	static void printAllUniv(Connection conn) {
+	/* 1. print all universities
+	 * 9. print all universities a student applied for
+	 * 11. print universities expected to accept a student */
+	static void printUniv(Connection conn, int code) {
 		try {
-			int id, capacity;
-			String name, group;
+			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+			int id, capacity, stud_id;
+			String name, group, selectSql = "", checkSql = "";
 			float weight, applied;
+			PreparedStatement selectStmt, checkStmt;
+			ResultSet selectRs, checkRs;
 			
-			String selectSql = "SELECT * FROM university";
-			PreparedStatement selectStmt = conn.prepareStatement(selectSql);
-			ResultSet selectRs = selectStmt.executeQuery();
+			switch(code) {
+			case 1:
+				selectSql = "SELECT * FROM university";
+				break;
+			default: // case 9, 11
+				System.out.print("Student id: ");
+				stud_id = Integer.parseInt(br.readLine());
+				checkSql = "SELECT * FROM student WHERE id = " + stud_id;
+				checkStmt = conn.prepareStatement(checkSql);
+				checkRs = checkStmt.executeQuery();
+				
+				if (!checkRs.first()) {
+					System.out.println("University " + stud_id + " doesn't exist.");
+					System.out.println(doubleLine);
+					return;
+				} else {
+					selectSql = "SELECT * FROM university JOIN apply ON (university.id = univ_id) JOIN student ON (student.id = stud_id) WHERE stud_id = " + stud_id; 
+				}
+				
+				/* case 11 */
+				if (code == 11) selectSql += " AND (pass_scaled_score < scaled_score OR (pass_scaled_score = scaled_score AND pass_school_score <= apply.school_score))";
+				break;
+			}
+
+			selectStmt = conn.prepareStatement(selectSql);
+			selectRs = selectStmt.executeQuery();
 			
 			if (!selectRs.first()) {
 				/* SQL result is empty */
@@ -107,15 +139,45 @@ class prj2 {
 		System.out.println(doubleLine);
 	}
 	
-	/* 2. print all students */
-	static void printAllStud(Connection conn) {
+	/* 2. print all students
+	 * 8. print all students who applied for a university
+	 * 10. print expected successful applicants of a university */
+	static void printStud(Connection conn, int code) {
+		
 		try {
-			int id, csat_score, school_score;
-			String name;
+			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+			int id, csat_score, school_score, univ_id;
+			String name, selectSql = "", checkSql = "";
+			PreparedStatement selectStmt, checkStmt;
+			ResultSet selectRs, checkRs;
 			
-			String selectSql = "SELECT * FROM student";
-			PreparedStatement selectStmt = conn.prepareStatement(selectSql);
-			ResultSet selectRs = selectStmt.executeQuery();
+			
+			switch(code) {
+			case 2:
+				selectSql = "SELECT * FROM student";
+				break;
+			default: // case 8, 10
+				System.out.print("University id: ");
+				univ_id = Integer.parseInt(br.readLine());
+				checkSql = "SELECT * FROM university WHERE id = " + univ_id;
+				checkStmt = conn.prepareStatement(checkSql);
+				checkRs = checkStmt.executeQuery();
+				
+				if (!checkRs.first()) {
+					System.out.println("University " + univ_id + " doesn't exist.");
+					System.out.println(doubleLine);
+					return;
+				} else {
+					selectSql = "SELECT * FROM university JOIN apply ON (university.id = univ_id) JOIN student ON (student.id = stud_id) WHERE univ_id = " + univ_id; 
+				}
+				
+				/* case 10 */
+				if (code == 10) selectSql += " AND (pass_scaled_score < scaled_score OR (pass_scaled_score = scaled_score AND pass_school_score <= apply.school_score))";
+				break;
+			}
+
+			selectStmt = conn.prepareStatement(selectSql);
+			selectRs = selectStmt.executeQuery();
 			
 			if (!selectRs.first()) {
 				/* SQL result is empty */
@@ -124,26 +186,26 @@ class prj2 {
 				System.out.println("id\t\t\tname\t\t\tcsat_score\tschool_score");
 				System.out.println(singleLine);
 				do {
-					id = selectRs.getInt("id");
-					name = selectRs.getString("name");
+					id = selectRs.getInt("student.id");
+					name = selectRs.getString("student.name");
 					csat_score = selectRs.getInt("csat_score");
 					school_score = selectRs.getInt("school_score");
 					
-					System.out.println(id+"\t\t\t"+name+"\t\t\t"+csat_score+"\t\t"+school_score);					
+					System.out.println(id+"\t\t\t"+name+"\t\t\t"+csat_score+"\t\t"+school_score);
 				} while (selectRs.next());
 				System.out.println(singleLine);
-			}			
+			}
+			System.out.println(doubleLine);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		System.out.println(doubleLine);
 	}
 
 	/* 3. insert a new university */
 	static void insertNewUniv(Connection conn) {
 		try {			
-			String insertSql = "INSERT INTO university VALUES(?, ?, ?, ?, ?, ?, ?)";
-			/* 1:id, 2:name, 3:capacity, 4:group, 5:weight, 6:applied, 7:pass_score */
+			String insertSql = "INSERT INTO university VALUES(?, ?, ?, ?, ?, ?, ?, ?)";
+			/* 1:id, 2:name, 3:capacity, 4:group, 5:weight, 6:applied, 7:pass_scaled_score, 8:pass_school_score */
 			PreparedStatement insertStmt = conn.prepareStatement(insertSql);
 
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
@@ -179,9 +241,10 @@ class prj2 {
 			}
 			insertStmt.setFloat(5, weight);
 			
-			/* applied and pass_score is initialized to 0 */
+			/* applied, pass_scaled_score and pass_school_score is initialized to 0 */
 			insertStmt.setInt(6, 0);
 			insertStmt.setInt(7, 0);
+			insertStmt.setInt(8, 0);
 			
 			/* get next id */
 			String getIdSql = "SELECT max(id) FROM university";
@@ -211,7 +274,7 @@ class prj2 {
 			PreparedStatement checkStmt = conn.prepareStatement(checkSql);
 			ResultSet checkRs = checkStmt.executeQuery();
 			if (!checkRs.first()) {
-				System.out.println("Student " + univ_id + " doesn't exist.");
+				System.out.println("University " + univ_id + " doesn't exist.");
 				System.out.println(doubleLine);
 				return;
 			} else {
@@ -315,7 +378,7 @@ class prj2 {
 				deleteStmt = conn.prepareStatement(deleteSql);
 				deleteStmt.executeUpdate();
 				
-				/* finally, update 'applied' & 'pass_score' in university table */
+				/* finally, update 'applied' & 'pass_scaled_score' in university table */
 				i = 0;
 				do {
 					updateApplied(conn, updateUniv_id[i++]);
@@ -332,7 +395,7 @@ class prj2 {
 	/* 7. make an application */
 	static void makeApplication(Connection conn) {
 		try {
-			String insertSql = "INSERT INTO apply VALUES(?, ?, ?, ?)";
+			String insertSql = "INSERT INTO apply VALUES(?, ?, ?, ?, ?)";
 			/* 1:stud_id, 2:univ_id, 3:group, 4:scaled_score */
 			PreparedStatement insertStmt = conn.prepareStatement(insertSql);
 			
@@ -387,6 +450,7 @@ class prj2 {
 				insertStmt.setString(3, group);
 				float scaled_score = csat_score + weight * school_score;
 				insertStmt.setFloat(4, scaled_score);
+				insertStmt.setInt(5, school_score);
 				insertStmt.executeUpdate();
 				System.out.println("Successfully made an application.");
 				System.out.println(doubleLine);
@@ -395,7 +459,7 @@ class prj2 {
 			/* update 'applied' in university table */
 			updateApplied(conn, univ_id);
 			
-			/* update 'pass_score' in university table */
+			/* update 'pass_scaled_score' & 'pass_school_score' in university table */
 			updatePassScore(conn, univ_id);
 			
 		} catch (Exception e) {
@@ -427,11 +491,12 @@ class prj2 {
 		}
 	}
 	
-	/* update 'pass_score' in university table */
+	/* update 'pass_scaled_score' in university table */
 	static void updatePassScore(Connection conn, int univ_id) {
 		try {
 			if (univ_id < 1) return; /* invalid univ_id */
-			float pass_score = 0;
+			float pass_scaled_score = 0;
+			int pass_school_score = 0;
 			
 			/* load necessary data */
 			String selectSql = "SELECT * FROM university WHERE id = " + univ_id;
@@ -452,40 +517,33 @@ class prj2 {
 			selectRs.first();
 			int applicantNum = selectRs.getInt("count(*)");
 			
-			selectSql = "SELECT * FROM apply WHERE univ_id = " + univ_id;
+			selectSql = "SELECT * FROM apply WHERE univ_id = " + univ_id + " ORDER BY scaled_score DESC, school_score DESC";
 			selectStmt = conn.prepareStatement(selectSql);
 			selectRs = selectStmt.executeQuery();
-			float[] scoreSet = new float[applicantNum];
+			float[] scaledScoreSet = new float[applicantNum];
+			int[] schoolScoreSet = new int[applicantNum];
+			
 			if (selectRs.first()) {
 				int i = 0;
 				do {
-					scoreSet[i++] = selectRs.getFloat("scaled_score");
+					scaledScoreSet[i] = selectRs.getFloat("scaled_score");
+					schoolScoreSet[i++] = selectRs.getInt("school_score");
 				} while (selectRs.next());
 			} else {
 				/* empty */
 			}
 			
-			/* sort scoreSet array : bubble sort */
-			float tmp;
-			for (int i=0; i<applicantNum-1; i++) {
-				for (int j=0; j<applicantNum-i-1; j++) {
-					if (scoreSet[j] > scoreSet[j+1]) {
-						tmp = scoreSet[j];
-						scoreSet[j] = scoreSet[j+1];
-						scoreSet[j+1] = tmp;
-					}
-				}
-			}
-			
 			/* find applied score */
 			if (applicantNum <= capacity) { // 1) all pass
-				pass_score = 0;
+				pass_scaled_score = 0;
+				pass_school_score = 0;
 			} else { // 2) otherwise
-				float tmpScore = scoreSet[capacity-1];
+				float tmpScaledScore = scaledScoreSet[capacity-1];
+				int tmpSchoolScore = schoolScoreSet[capacity-1];
 				int maxCapacity = (int)Math.ceil(capacity * 1.1);
 				int passNum = capacity;
 				do {
-					if (tmpScore == scoreSet[passNum]) {
+					if (tmpScaledScore == scaledScoreSet[passNum] && tmpSchoolScore == schoolScoreSet[passNum]) {
 						passNum++;
 					} else {
 						break;
@@ -497,23 +555,27 @@ class prj2 {
 				} else { // 2-2) tie students all fail
 					passNum = capacity-1;
 					do {
-						if (tmpScore != scoreSet[passNum-1]) {
-							tmpScore = scoreSet[passNum-1];
+						if (tmpScaledScore != scaledScoreSet[passNum] || tmpSchoolScore != schoolScoreSet[passNum]) {
+							tmpScaledScore = scaledScoreSet[passNum-1];
+							tmpSchoolScore = schoolScoreSet[passNum-1];
 							break;
 						}
 						passNum--;
 					} while (passNum > 0);
 					if (passNum == 0) {
-						tmpScore = scoreSet[applicantNum-1] + 1; // no one can pass!
+						tmpScaledScore = scaledScoreSet[applicantNum-1] + 1; // no one can pass!
+						tmpSchoolScore = 0; // invalid!
 					}
 				}
-				pass_score = tmpScore;
+				pass_scaled_score = tmpScaledScore;
+				pass_school_score = tmpSchoolScore;
 			}
 			
 			/* update SQL */
-			String updateSql = "UPDATE university SET pass_score = " + pass_score + " WHERE id =" + univ_id;
+			String updateSql = "UPDATE university SET pass_scaled_score = " + pass_scaled_score + ", pass_school_score = " + pass_school_score + " WHERE id =" + univ_id;
 			PreparedStatement updateStmt = conn.prepareStatement(updateSql);
 			updateStmt.executeUpdate();
+			
 			
 		} catch (Exception e) {
 			e.printStackTrace();
