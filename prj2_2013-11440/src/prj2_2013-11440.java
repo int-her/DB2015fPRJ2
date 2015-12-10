@@ -39,11 +39,13 @@ class prj2 {
 					insertNewUniv(conn);
 					break;
 				case 4:
+					removeUniversity(conn);
 					break;
 				case 5:
 					insertNewStud(conn);
 					break;
 				case 6:
+					removeStudent(conn);
 					break;
 				case 7:
 					makeApplication(conn);
@@ -147,18 +149,34 @@ class prj2 {
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 			System.out.print("University name: ");
 			String name = br.readLine();
+			if (name.length() > 128) {} /* truncate */
 			insertStmt.setString(2, name);
 			
 			System.out.print("University capacity: ");
 			int capacity = Integer.parseInt(br.readLine());
+			if (capacity < 1) {
+				System.out.println("Capacity should be over 0.");
+				System.out.println(doubleLine);
+				return;
+			}
 			insertStmt.setInt(3, capacity);
 			
 			System.out.print("University group: ");
 			String group = br.readLine();
+			if (group.compareTo("A") != 0 && group.compareTo("B") != 0 && group.compareTo("C") != 0) {
+				System.out.println("Group should be 'A', 'B', or 'C'.");
+				System.out.println(doubleLine);
+				return;
+			}
 			insertStmt.setString(4, group);
 			
 			System.out.print("Weight of high school records: ");
 			float weight = Float.parseFloat(br.readLine());
+			if (weight < 0.0) {
+				System.out.println("Weight of high school records cannot be negative.");
+				System.out.println(doubleLine);
+				return;
+			}
 			insertStmt.setFloat(5, weight);
 			
 			/* applied is initialized to 0 */
@@ -175,10 +193,19 @@ class prj2 {
 			
 			insertStmt.executeUpdate();
 			System.out.println("A university is successfully inserted.");
+			System.out.println(doubleLine);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		System.out.println("============================================================");
+	}
+	
+	/* 4. remove a university */
+	static void removeUniversity(Connection conn) {
+		try {
+			System.out.println("A university is successfully deleted.");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 	/* 5. insert a new student */
@@ -194,12 +221,22 @@ class prj2 {
 			insertStmt.setString(2, name);
 			
 			System.out.print("CSAT score: ");
-			int csatScore = Integer.parseInt(br.readLine());
-			insertStmt.setInt(3, csatScore);
+			int csat_score = Integer.parseInt(br.readLine());
+			if (csat_score > 400 || csat_score < 0) {
+				System.out.println("CSAT score should be between 0 and 400.");
+				System.out.println(doubleLine);
+				return;
+			}
+			insertStmt.setInt(3, csat_score);
 			
 			System.out.print("High school record score: ");
-			int schoolScore = Integer.parseInt(br.readLine());
-			insertStmt.setInt(4, schoolScore);
+			int school_score = Integer.parseInt(br.readLine());
+			if (school_score > 100 || csat_score < 0) {
+				System.out.println("High school records score should be between 0 and 100.");
+				System.out.println(doubleLine);
+				return;
+			}
+			insertStmt.setInt(4, school_score);
 			
 			/* get next id */
 			String getIdSql = "SELECT max(id) FROM student";
@@ -212,10 +249,19 @@ class prj2 {
 			
 			insertStmt.executeUpdate();
 			System.out.println("A student is successfully inserted.");
+			System.out.println(doubleLine);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		System.out.println(doubleLine);
+	}
+	
+	/* 6. remove a student */
+	static void removeStudent(Connection conn) {
+		try {
+			System.out.println("A student is successfully deleted.");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 	/* 7. make an application */
@@ -228,31 +274,66 @@ class prj2 {
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 			System.out.println("Student Id: ");
 			int stud_id = Integer.parseInt(br.readLine());
+			/* check stud_id is valid data */
+			String checkSql = "SELECT * FROM student WHERE id = " + stud_id;
+			PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+			ResultSet checkRs = checkStmt.executeQuery();
+			if (!checkRs.first()) {
+				System.out.println("Student " + stud_id + " doesn't exist.");
+				System.out.println(doubleLine);
+				return;
+			}
 			insertStmt.setInt(1, stud_id);
 			
 			System.out.println("University Id: ");
 			int univ_id = Integer.parseInt(br.readLine());
 			insertStmt.setInt(2, univ_id);
 			
-			/* get group & weight info in university table */
+			/* check univ_id is valid data and get group & weight info in university table */
 			String getInfoSql = "SELECT * FROM university WHERE id = " + univ_id;
 			PreparedStatement getInfoStmt = conn.prepareStatement(getInfoSql);
 			ResultSet getInfoRs = getInfoStmt.executeQuery();
 			
+			/* check univ_id is valid data */
 			if (!getInfoRs.first()) {
-				System.out.println("");
+				System.out.println("University " + univ_id + "doesn't exist.");
 				System.out.println(doubleLine);
+				return;
 			} else {
 				String group = getInfoRs.getString("group");
 				float weight = getInfoRs.getFloat("weight");
+				
+				/* check application is one university per group */
+				checkSql = "SELECT * FROM apply WHERE stud_id = " + stud_id;
+				checkStmt = conn.prepareStatement(checkSql);
+				checkRs = checkStmt.executeQuery();
+				if (checkRs.first()) {
+					do {
+						String compareGroup = checkRs.getString("group");
+						if (group.compareTo(compareGroup) == 0) {
+							System.out.println("A student can apply up to one university per group.");
+							System.out.println(doubleLine);
+							return;
+						}						
+					} while (checkRs.next());
+				}
+				
 				insertStmt.setString(3, group);
 				insertStmt.setFloat(4, weight);
 				insertStmt.executeUpdate();
 				System.out.println("Successfully made an application");
 				System.out.println(doubleLine);
-			}			
+			}
+			
+			/* update 'applied' in university table */
+			updateApplied(conn);
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	static void updateApplied(Connection conn) {
+		
 	}
 }
