@@ -413,15 +413,26 @@ class prj2 {
 				System.out.println("**********THIS MSG SHOULD NOT BE PRINTED**********");
 			}
 			
+			selectSql = "SELECT count(*) FROM apply WHERE univ_id = " + univ_id;
+			selectStmt = conn.prepareStatement(selectSql);
+			selectRs = selectStmt.executeQuery();
+			selectRs.first();
+			int applicantNum = selectRs.getInt("count(*)");
+			
 			selectSql = "SELECT * FROM apply WHERE univ_id = " + univ_id;
 			selectStmt = conn.prepareStatement(selectSql);
 			selectRs = selectStmt.executeQuery();
 			if (selectRs.first()) {
-				/* use list or array, and sorting library */
+				float[] scoreSet = new float[applicantNum];
+				int i = 0;
+				do {
+					scoreSet[i++] = selectRs.getFloat("scaled_score");
+				} while (selectRs.next());
 			} else {
 				/* empty */
 			}
 			
+			/* sort scoreSet array */
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
