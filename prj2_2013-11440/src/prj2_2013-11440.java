@@ -1,6 +1,7 @@
 import java.sql.*;
 import java.io.*;
 import java.text.*;
+import java.lang.Math;
 
 class prj2 {
 
@@ -68,6 +69,7 @@ class prj2 {
 					System.exit(0);
 				default:
 					System.out.println("Invalid action.");
+					System.out.println(doubleLine);
 				}
 					
 				
@@ -292,6 +294,7 @@ class prj2 {
 				deleteStmt = conn.prepareStatement(deleteSql);
 				deleteStmt.executeUpdate();
 				System.out.println("A university is successfully deleted.");
+				System.out.println(doubleLine);
 			}
 
 		} catch (Exception e) {
@@ -535,7 +538,8 @@ class prj2 {
 				int i = 0;
 				do {
 					scaledScoreSet[i] = selectRs.getFloat("scaled_score");
-					schoolScoreSet[i++] = selectRs.getInt("school_score");
+					schoolScoreSet[i] = selectRs.getInt("school_score");
+					i++;
 				} while (selectRs.next());
 			} else {
 				/* empty */
@@ -563,7 +567,7 @@ class prj2 {
 				} else { // 2-2) tie students all fail
 					passNum = capacity-1;
 					do {
-						if (tmpScaledScore != scaledScoreSet[passNum] || tmpSchoolScore != schoolScoreSet[passNum]) {
+						if (tmpScaledScore != scaledScoreSet[passNum-1] || tmpSchoolScore != schoolScoreSet[passNum-1]) {
 							tmpScaledScore = scaledScoreSet[passNum-1];
 							tmpSchoolScore = schoolScoreSet[passNum-1];
 							break;
@@ -571,7 +575,7 @@ class prj2 {
 						passNum--;
 					} while (passNum > 0);
 					if (passNum == 0) {
-						tmpScaledScore = scaledScoreSet[applicantNum-1] + 1; // no one can pass!
+						tmpScaledScore = scaledScoreSet[0] + 1; // no one can pass!
 						tmpSchoolScore = 0; // invalid!
 					}
 				}
