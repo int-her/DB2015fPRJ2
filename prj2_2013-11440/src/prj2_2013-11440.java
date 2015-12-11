@@ -389,7 +389,7 @@ class prj2 {
 				deleteStmt = conn.prepareStatement(deleteSql);
 				deleteStmt.executeUpdate();
 				
-				/* finally, update 'applied' & 'pass_scaled_score' in university table */
+				/* finally, update 'applied' & 'pass_scaled_score' & 'pass_school_score' in university table */
 				i = 0;
 				do {
 					updateApplied(conn, updateUniv_id[i]);
@@ -397,6 +397,7 @@ class prj2 {
 				} while (i < 3);
 
 				System.out.println("A student is successfully deleted.");
+				System.out.println(doubleLine);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -407,7 +408,7 @@ class prj2 {
 	static void makeApplication(Connection conn) {
 		try {
 			String insertSql = "INSERT INTO apply VALUES(?, ?, ?, ?, ?)";
-			/* 1:stud_id, 2:univ_id, 3:group, 4:scaled_score */
+			/* 1:stud_id, 2:univ_id, 3:group, 4:scaled_score, 5:school_score */
 			PreparedStatement insertStmt = conn.prepareStatement(insertSql);
 			
 			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
